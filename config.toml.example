@@ -9,6 +9,9 @@ coeff = 48.0
 vk = 1.5
 reddit = 15.0
 
+[Collision]
+Distance = 1
+
 [VK]
 server_address = "https://api.vk.com/method/"
 token = ""
