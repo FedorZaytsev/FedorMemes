@@ -1,0 +1,107 @@
+#TOML config file.
+title = "fedormemes"
+serve_address = ":3364"
+
+[metric]
+coeff = 48.0
+
+[metric.DefaultGroupRating]
+vk = 1.5
+reddit = 15.0
+
+[VK]
+server_address = "https://api.vk.com/method/"
+token = ""
+vk_api_version = "5.75"
+request_timeout = 200																	#in ms
+looking_duration = 72 																	#in hours
+update_timeout = 10																		#in minutes
+link_format = "https://vk.com/{{.Group}}?w=wall-{{.GroupId}}_{{.PostId}}"
+SpamFilter = "\\[(club|id).*\\|.*\\]"
+
+[Reddit]
+UserAgent = "Fedor-memes-bot"
+Publics = ["memes"]
+AppId = ""
+Password = ""
+Secret = ""
+Username = ""
+
+[VK.publics]
+        [VK.publics.mudakoff]
+        name = "MDK"
+        groupId = 57846937
+
+        [VK.publics.fuck_humor]
+        name = "ЁП"
+        groupId = 12382740
+
+        [VK.publics.onlyorly]
+        name = "Орленок"
+        groupId = 36775802
+
+        [VK.publics.4ch]
+        name = "4ch"
+        groupId = 45745333
+
+        [VK.publics.2chyy]
+        name = "2ch"
+        groupId = 34824571
+
+        [VK.publics.mentaldisordeer]
+        name = "причины моего психического расстройства"
+        groupId = 154168174
+
+        [VK.publics.satyric_on]
+        name = "Сатирикон"
+        groupId = 64526004
+
+        [VK.publics.medieval_or]
+        name = "ОРУ, СЭР!"
+        groupId = 155590170
+
+        [VK.publics.metadon]
+        name = "Метадон"
+        groupId = 43920247
+
+        [VK.publics.stlbn]
+        name = "Как я встретил столбняк"
+        groupId = 35294456
+
+        [VK.publics.borsch]
+        name = "БОРЩ"
+        groupId = 460389
+
+        [VK.publics.nice_student]
+        name = "Весёлый студент"
+        groupId = 29832607
+
+        [VK.publics.fiztehjoke]
+        name = "Физтехи шутят"
+        groupId = 24086381
+
+        [VK.publics.fuck_hum]
+        name = "ПЗДЦ"
+        groupId = 28261265
+
+        [VK.publics.uprtsuka]
+        name = "Упорот"
+        groupId = 49356080
+
+        [VK.publics.ru9gag]
+        name = "9GAG"
+        groupId = 32041317
+
+[telegram_bot]
+#chat_id = -1001291294845																#prod
+chat_id = -1001128183883																#prod
+chat_id_debug = -1001249964370																#test
+#token = ""								#prod
+token = ""									#test
+
+[DB]
+name = "fedormemes.db"
+
+[log]
+type = "stdout"
+severity = "LOG_DEBUG"
