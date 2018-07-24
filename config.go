@@ -16,6 +16,9 @@ type TomlConfig struct {
 		Coeff              float64
 		DefaultGroupRating map[string]float64
 	}
+	Collision struct {
+		Distance int
+	}
 
 	VK          VK
 	Reddit      Reddit

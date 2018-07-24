@@ -12,7 +12,7 @@ import (
 
 type MemeHash struct {
 	MemeId int
-	Hash   string
+	Hash   *goimagehash.ImageHash
 }
 
 func getImageHash(url string) (string, error) {
@@ -33,16 +33,20 @@ func getImageHash(url string) (string, error) {
 	return hash.ToString(), nil
 }
 
-func (m *Meme) getHash() (string, error) {
+func (m *Meme) getHash() (*goimagehash.ImageHash, error) {
 	res := ""
 	for _, url := range m.Pictures {
 		hash, err := getImageHash(url)
 		if err != nil {
-			return "", fmt.Errorf("Cannot get hash from meme. Reason %s", err)
+			return nil, fmt.Errorf("Cannot get hash from meme. Reason %s", err)
 		}
 		res = fmt.Sprintf("%s%s|", res, hash)
 	}
-	return res, nil
+	hash, err := goimagehash.ImageHashFromString(res)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot parse image hash from string (meme %v). Reason %s", m, err)
+	}
+	return hash, nil
 }
 
 func (s *Storage) isUnique(meme *Meme) (bool, string, error) {
@@ -61,9 +65,13 @@ func (s *Storage) isUnique(meme *Meme) (bool, string, error) {
 		if err != nil {
 			return false, "", fmt.Errorf("Cannot scan image hash from db. Reason %s", err)
 		}
+		imgHash, err := goimagehash.ImageHashFromString(hash)
+		if err != nil {
+			Log.Errorf("Cannot parse hash for meme with id %d. Reason %s", memeid, err)
+		}
 		hashes = append(hashes, MemeHash{
 			MemeId: memeid,
-			Hash:   hash,
+			Hash:   imgHash,
 		})
 	}
 
@@ -73,7 +81,9 @@ func (s *Storage) isUnique(meme *Meme) (bool, string, error) {
 	}
 
 	for _, hash := range hashes {
-		if hash.Hash == memeHash {
+		dist, _ := hash.Hash.Distance(memeHash)
+
+		if dist <= Config.Collision.Distance {
 			m, err := s.GetMemeById(hash.MemeId)
 			if err != nil {
 				return false, "", fmt.Errorf("Cannot get meme associated with hash %v. Reason %s", hash, err)
@@ -81,11 +91,11 @@ func (s *Storage) isUnique(meme *Meme) (bool, string, error) {
 
 			if m.Description == meme.Description {
 				Log.Infof("Meme %v is not unique. Same meme is %v. Hashes %s %s", meme, m, memeHash, hash.Hash)
-				return false, memeHash, nil
+				return false, memeHash.ToString(), nil
 			} else {
 				Log.Infof("Pictures in meme %v is not unique to %v, but text is different", meme, m)
 			}
 		}
 	}
-	return true, memeHash, nil
+	return true, memeHash.ToString(), nil
 }
