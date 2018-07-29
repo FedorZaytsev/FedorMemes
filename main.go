@@ -61,6 +61,12 @@ func init() {
 		os.Exit(1)
 	}
 
+	err = storage.Init()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	err = Config.VK.Init()
 	if err != nil {
 		fmt.Println(err)

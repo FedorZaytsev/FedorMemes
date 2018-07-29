@@ -1,18 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
-	"strings"
-	"text/template"
 	"time"
 
 	"github.com/gocarina/gocsv"
 	_ "github.com/mattn/go-sqlite3"
+	"runtime/debug"
 )
 
 var storage *Storage
@@ -26,121 +24,6 @@ type Storage struct {
 	DB            *sql.DB
 	GroupRatings  map[string]map[string]float64
 	GroupActivity map[string]map[string]float64
-}
-
-type Meme struct {
-	Id          int
-	MemeId      string
-	Public      string
-	Platform    string
-	Pictures    Pictures
-	Description string
-	Likes       int
-	Reposts     int
-	Views       int
-	Comments    int
-	Time        time.Time
-}
-
-type MemeDebug struct {
-	Meme
-	KekIndex      float64
-	TimePassed    string
-	TimeCoeff     float64
-	GroupCoeff    float64
-	GroupActivity float64
-	KekScore      float64
-}
-
-type Pictures []string
-
-func (p *Pictures) MarshalCSV() (string, error) {
-	data, err := json.Marshal(p)
-	return string(data), err
-}
-
-func (m *Meme) calculateKekIndex() float64 {
-	if m.Views == 0 {
-		return 0
-	}
-	if m.Likes == 0 {
-		return 0
-	}
-	var repostsToLikes = math.Min(float64(m.Reposts)/float64(m.Likes), 1)
-	return repostsToLikes + (1-repostsToLikes)*float64(m.Likes)/float64(m.Views)
-}
-
-func (m *Meme) calculateTimeCoeff() float64 {
-	x := float64(time.Now().Sub(m.Time)) / float64(time.Hour)
-
-	return 1 / math.Exp(x/Config.Metric.Coeff)
-}
-
-func (m *Meme) calculateGroupCoeff() float64 {
-	if _, ok := storage.GroupRatings[m.Platform]; !ok {
-		if def, ok := Config.Metric.DefaultGroupRating[m.Platform]; ok {
-			return def
-		}
-		return 1.0
-	}
-	groupRating, ok := storage.GroupRatings[m.Platform][m.Public]
-	if !ok {
-		if def, ok := Config.Metric.DefaultGroupRating[m.Platform]; ok {
-			return def
-		}
-		return 1.0
-	}
-	return groupRating
-}
-
-func (m *Meme) calculateGroupActivity() float64 {
-	if _, ok := storage.GroupActivity[m.Platform]; !ok {
-		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
-		return 1.0
-	}
-	if _, ok := storage.GroupActivity[m.Platform][m.Public]; !ok {
-		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
-		return 1.0
-	}
-	return storage.GroupActivity[m.Platform][m.Public]
-}
-
-func (m *Meme) calculateKekScore() float64 {
-	if m.Views == 0 {
-		return 0
-	}
-	var summedWeight = kekIndexWeight + timeCoeffWeight + groupCoeffWeight + groupActivityWeight
-
-	score := (kekIndexWeight*m.calculateKekIndex() + timeCoeffWeight*m.calculateTimeCoeff() + groupCoeffWeight*m.calculateGroupCoeff() /*+ groupActivityWeight*m.calculateGroupActivity()*/) / summedWeight //group coeff is unclear for me, need reconsideration of this coeff
-	return score * 10
-}
-
-func generateURL(platform string, meme Meme) string {
-	var err error
-	buf := bytes.NewBuffer([]byte(""))
-
-	switch strings.ToLower(platform) {
-	case "vk":
-		{
-			if _, ok := Config.VK.Publics[meme.Public]; !ok {
-				Log.Errorf("Cannot find info to public %s", meme.Public)
-			}
-			tmpl, err := template.New("tmpl").Parse(Config.VK.LinkFormat)
-			if err != nil {
-				Log.Errorf("Cannot parse template for %s. Reason %s", platform, err)
-			}
-			err = tmpl.ExecuteTemplate(buf, "tmpl", map[string]interface{}{
-				"Group":   meme.Public,
-				"GroupId": Config.VK.Publics[meme.Public].GroupId,
-				"PostId":  meme.Id,
-			})
-		}
-	}
-	if err != nil {
-		Log.Errorf("Cannot execute template %s. Reason %s", strings.ToLower(platform), err)
-	}
-
-	return buf.String()
 }
 
 func (s *Storage) CalculateGroupActivity() (map[string]map[string]float64, error) {
@@ -187,6 +70,8 @@ func (s *Storage) CalculateGroupRating(chatId int64) (map[string]map[string]floa
 
 	rating := map[string]map[string]float64{}
 	counters := map[string]map[string]Counters{}
+	Log.Infof("CalculateGroupRating %p", s)
+	debug.PrintStack()
 	stats, err := s.getStatistics(chatId)
 	if err != nil {
 		return rating, fmt.Errorf("Cannot get statistics. Reason %s", err)
@@ -231,9 +116,7 @@ func (s *Storage) Init() error {
 	if err != nil {
 		return fmt.Errorf("Cannot set pragma foreign_keys on. Reason %s", err)
 	}
-	//insert into memes_new (memeid, public, platform, pictures, description, likes, reposts, views, comments, time) select * from memes;
-	//insert into memes select * from memes_new;
-	//insert into memes_new (memeid, public, platform, pictures, description, likes, reposts, views, comments, time) select * from memes;
+
 	_, err = s.DB.Exec(`CREATE TABLE IF NOT EXISTS memes (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 memeid TEXT NOT NULL,
@@ -251,8 +134,7 @@ UNIQUE (memeid, public, platform)
 	if err != nil {
 		return fmt.Errorf("Cannot create memes table. Reason %s", err)
 	}
-	//insert into shown_memes_new select m.id, sm.chat_id, sm.msg_id from shown_memes as sm join memes as m on m.platform = sm.platform and m.public = sm.public and m.memeid = sm.id;
-	//insert into shown_memes_new select m.id, sm.chat_id, sm.msg_id from shown_memes as sm join memes as m on sm.id=m.memeid and sm.public=m.public and sm.platform=m.platform;
+
 	_, err = s.DB.Exec(`CREATE TABLE IF NOT EXISTS shown_memes (
 meme_id INTEGER NOT NULL,
 chat_id int NOT NULL,
@@ -262,8 +144,7 @@ FOREIGN KEY(meme_id) REFERENCES memes(id)
 	if err != nil {
 		return fmt.Errorf("Cannot create shown_memes table. Reason %s", err)
 	}
-	//insert into meme_hashes_new select m.id, mh.hash from meme_hashes as mh join memes as m on m.platform = mh.platform and m.public = mh.public and m.memeid = mh.id;
-	//insert into meme_hashes_new select m.id, sm.hash from meme_hashes as sm join memes as m on sm.id=m.memeid and sm.public=m.public and sm.platform=m.platform;
+
 	_, err = s.DB.Exec(`CREATE TABLE IF NOT EXISTS meme_hashes (
 meme_id INTEGER NOT NULL,
 hash TEXT NOT NULL,
@@ -272,8 +153,7 @@ FOREIGN KEY(meme_id) REFERENCES memes(id)
 	if err != nil {
 		return fmt.Errorf("Cannot create meme_hashes table. Reason %s", err)
 	}
-	//insert into memes(id, memeid, public, platform, pictures, description, likes, reposts, views, comments, time) values(0, 0, "fedormemes", "fedormemes", "[]", "", 1, 1, 100000, 1, "2000-00-00 00:00:00");
-	//insert into chat_metadata_new select *, 0 from chat_metadata;
+
 	_, err = s.DB.Exec(`CREATE TABLE IF NOT EXISTS chat_metadata (
 msg_id INTEGER NOT NULL,
 user_id INTEGER NOT NULL,
@@ -284,6 +164,18 @@ UNIQUE (msg_id, user_id, chat_id)
 	if err != nil {
 		return fmt.Errorf("Cannot create chat table. Reason %s", err)
 	}
+
+	s.GroupRatings, err = s.CalculateGroupRating(Config.TelegramBot.ChatId)
+	if err != nil {
+		Log.Errorf("Cannot calculate group rating. Reason %s", err)
+	}
+	Log.Infof("GroupRatings %v", s.GroupRatings)
+
+	s.GroupActivity, err = s.CalculateGroupActivity()
+	if err != nil {
+		Log.Errorf("Cannot calculate group activity. Reason %s", err)
+	}
+
 	return nil
 }
 
@@ -314,14 +206,12 @@ func (s *Storage) AddMeme(meme Meme) error {
 	if err != nil {
 		return fmt.Errorf("Cannot check is meme exist. Reason %s", err)
 	}
-	hash := ""
 
 	if isExist {
 		return nil
 	}
 
-	var isUnique bool
-	isUnique, hash, err = s.isUnique(&meme)
+	isUnique, hash, err := s.isUnique(&meme)
 	if err != nil {
 		return fmt.Errorf("Cannot check is meme %v unique. Reason %s", meme, err)
 	}
@@ -489,25 +379,7 @@ func NewStorage(dbname string) (*Storage, error) {
 		DB:           db,
 		GroupRatings: nil,
 	}
-	err = s.Init()
-	if err != nil {
-		return nil, err
-	}
 
-	time.AfterFunc(time.Second, func() {
-		groupRatings, err := storage.CalculateGroupRating(Config.TelegramBot.ChatId)
-		if err != nil {
-			Log.Errorf("Cannot calculate group rating. Reason %s", err)
-		}
-		storage.GroupRatings = groupRatings
-		Log.Infof("GroupRatings %v", storage.GroupRatings)
-
-		groupsActivity, err := storage.CalculateGroupActivity()
-		if err != nil {
-			Log.Errorf("Cannot calculate group activity. Reason %s", err)
-		}
-		storage.GroupActivity = groupsActivity
-	})
 	return &s, nil
 
 }

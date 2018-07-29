@@ -74,6 +74,8 @@ type MemeStat struct {
 
 func (s *Storage) getStatistics(chatId int64) ([]MemeStat, error) {
 	res := []MemeStat{}
+	Log.Infof("s %p", s)
+	Log.Infof("s %p s.DB %p", s, s.DB)
 	rows, err := s.DB.Query(`select meme_id, msg_id from shown_memes where msg_id != 0 and chat_id = ?`, chatId)
 	if err != nil {
 		return res, fmt.Errorf("Cannot get shown_memes for chat %d. Reason %s", chatId, err)
