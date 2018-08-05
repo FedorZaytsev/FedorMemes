@@ -10,7 +10,6 @@ import (
 
 	"github.com/gocarina/gocsv"
 	_ "github.com/mattn/go-sqlite3"
-	"runtime/debug"
 )
 
 var storage *Storage
@@ -21,34 +20,33 @@ var groupCoeffWeight = 1.0
 var groupActivityWeight = 1.0
 
 type Storage struct {
-	DB            *sql.DB
-	GroupRatings  map[string]map[string]float64
-	GroupActivity map[string]map[string]float64
+	DB               *sql.DB
+	GroupRatings     map[string]map[string]float64
+	GroupActivity    map[string]map[string]float64
+	PlatformRatings  map[string]float64
+	PlatformActivity map[string]float64
 }
 
-func (s *Storage) CalculateGroupActivity() (map[string]map[string]float64, error) {
+func (s *Storage) calculateGroupActivity() error {
 	res := map[string]map[string]float64{}
 	temp := map[string]map[string][]float64{}
 	memes, err := s.GetMemes(time.Unix(0, 0))
 	if err != nil {
-		return res, fmt.Errorf("Cannot get memes. Reason %s", err)
+		return fmt.Errorf("Cannot get memes. Reason %s", err)
 	}
 
 	for _, meme := range memes {
 		if _, ok := temp[meme.Platform]; !ok {
 			temp[meme.Platform] = make(map[string][]float64)
 		}
-		if _, ok := temp[meme.Platform][meme.Public]; !ok {
-			temp[meme.Platform][meme.Public] = []float64{}
-		}
 		temp[meme.Platform][meme.Public] = append(temp[meme.Platform][meme.Public], meme.calculateKekIndex())
 	}
 
-	for platform, _ := range temp {
+	for platform := range temp {
 		if _, ok := res[platform]; !ok {
 			res[platform] = make(map[string]float64)
 		}
-		for public, _ := range temp[platform] {
+		for public := range temp[platform] {
 			sum := float64(0)
 			for _, el := range temp[platform][public] {
 				sum += el
@@ -57,12 +55,38 @@ func (s *Storage) CalculateGroupActivity() (map[string]map[string]float64, error
 		}
 	}
 
-	Log.Infof("CalculateGroupActivity res %v\n\n", res)
+	s.GroupActivity = res
 
-	return res, nil
+	return nil
 }
 
-func (s *Storage) CalculateGroupRating(chatId int64) (map[string]map[string]float64, error) {
+func (s *Storage) calculatePlatformActivity() error {
+	res := map[string]float64{}
+	temp := map[string][]float64{}
+	memes, err := s.GetMemes(time.Unix(0, 0))
+	if err != nil {
+		return fmt.Errorf("Cannot get memes. Reason %s", err)
+	}
+
+	for _, meme := range memes {
+		score := meme.calculateKekIndex() / meme.calculateGroupActivity() * meme.calculateGroupRating()
+		temp[meme.Platform] = append(temp[meme.Platform], score)
+	}
+
+	for platform := range temp {
+		sum := float64(0)
+		for _, el := range temp[platform] {
+			sum += el
+		}
+		res[platform] = sum / float64(len(temp[platform]))
+	}
+
+	s.PlatformActivity = res
+
+	return nil
+}
+
+func (s *Storage) calculateGroupRating(chatId int64) error {
 	type Counters struct {
 		Likes    float64
 		Dislikes float64
@@ -70,11 +94,9 @@ func (s *Storage) CalculateGroupRating(chatId int64) (map[string]map[string]floa
 
 	rating := map[string]map[string]float64{}
 	counters := map[string]map[string]Counters{}
-	Log.Infof("CalculateGroupRating %p", s)
-	debug.PrintStack()
 	stats, err := s.getStatistics(chatId)
 	if err != nil {
-		return rating, fmt.Errorf("Cannot get statistics. Reason %s", err)
+		return fmt.Errorf("Cannot get statistics. Reason %s", err)
 	}
 
 	for _, stat := range stats {
@@ -87,8 +109,8 @@ func (s *Storage) CalculateGroupRating(chatId int64) (map[string]map[string]floa
 		counters[stat.Platform][stat.Public] = counter
 	}
 
-	for platform, _ := range counters {
-		for public, _ := range counters[platform] {
+	for platform := range counters {
+		for public := range counters[platform] {
 			if _, ok := rating[platform]; !ok {
 				rating[platform] = make(map[string]float64)
 			}
@@ -103,7 +125,45 @@ func (s *Storage) CalculateGroupRating(chatId int64) (map[string]map[string]floa
 		}
 	}
 
-	return rating, nil
+	s.GroupRatings = rating
+
+	return nil
+}
+
+func (s *Storage) calculatePlatformRating(chatId int64) error {
+	type Counters struct {
+		Likes    float64
+		Dislikes float64
+	}
+
+	rating := map[string]float64{}
+	counters := map[string]Counters{}
+	stats, err := s.getStatistics(chatId)
+	if err != nil {
+		return fmt.Errorf("Cannot get statistics. Reason %s", err)
+	}
+
+	for _, stat := range stats {
+		counter := counters[stat.Platform]
+		counter.Likes += float64(stat.Likes)
+		counter.Dislikes += float64(stat.Dislikes)
+		counters[stat.Platform] = counter
+	}
+
+	for platform := range counters {
+		counters := counters[platform]
+		likes := counters.Likes
+		dislikes := counters.Dislikes
+		if likes+dislikes == 0 {
+			rating[platform] = 0.5
+		} else {
+			rating[platform] = -1.0/(math.Exp((likes-dislikes)/(likes+dislikes))+1) + 1
+		}
+	}
+
+	s.PlatformRatings = rating
+
+	return nil
 }
 
 const ISO8601 = "2006-01-02 15:04:05"
@@ -165,18 +225,38 @@ UNIQUE (msg_id, user_id, chat_id)
 		return fmt.Errorf("Cannot create chat table. Reason %s", err)
 	}
 
-	s.GroupRatings, err = s.CalculateGroupRating(Config.TelegramBot.ChatId)
+	err = s.calculateCoeffs(Config.TelegramBot.ChatId)
 	if err != nil {
-		Log.Errorf("Cannot calculate group rating. Reason %s", err)
-	}
-	Log.Infof("GroupRatings %v", s.GroupRatings)
-
-	s.GroupActivity, err = s.CalculateGroupActivity()
-	if err != nil {
-		Log.Errorf("Cannot calculate group activity. Reason %s", err)
+		return fmt.Errorf("Cannot calculate coeffs. Reason %s", err)
 	}
 
 	return nil
+}
+
+func (s *Storage) calculateCoeffs(chatId int64) error {
+	var err error
+	err = s.calculateGroupRating(chatId)
+	if err != nil {
+		return fmt.Errorf("Cannot calculate group rating. Reason %s", err)
+	}
+
+	err = s.calculateGroupActivity()
+	if err != nil {
+		return fmt.Errorf("Cannot calculate group activity. Reason %s", err)
+	}
+
+	err = s.calculatePlatformRating(chatId)
+	if err != nil {
+		return fmt.Errorf("Cannot calculate platform rating. Reason %s", err)
+	}
+
+	err = s.calculatePlatformActivity()
+	if err != nil {
+		return fmt.Errorf("Cannot calculate platform activity. Reason %s", err)
+	}
+
+	return nil
+
 }
 
 func (s *Storage) isMemeExists(id, public, platform string) (bool, error) {
@@ -328,22 +408,26 @@ func (s *Storage) Dump() error {
 
 	type MemeEx struct {
 		Meme
-		KekIndex      float64
-		TimeCoeff     float64
-		GroupCoeff    float64
-		GroupActivity float64
-		KekScore      float64
+		KekIndex         float64
+		TimeCoeff        float64
+		GroupRating      float64
+		GroupActivity    float64
+		PlatformRating   float64
+		PlatformActivity float64
+		KekScore         float64
 	}
 
 	res := []MemeEx{}
 	for _, meme := range memes {
 		res = append(res, MemeEx{
-			Meme:          meme,
-			KekIndex:      meme.calculateKekIndex(),
-			TimeCoeff:     meme.calculateTimeCoeff(),
-			GroupCoeff:    meme.calculateGroupCoeff(),
-			GroupActivity: meme.calculateGroupActivity(),
-			KekScore:      meme.calculateKekScore(),
+			Meme:             meme,
+			KekIndex:         meme.calculateKekIndex(),
+			TimeCoeff:        meme.calculateTimeCoeff(),
+			GroupRating:      meme.calculateGroupRating(),
+			GroupActivity:    meme.calculateGroupActivity(),
+			PlatformRating:   meme.calculatePlatformRating(),
+			PlatformActivity: meme.calculatePlatformActivity(),
+			KekScore:         meme.СalculateKekScore(),
 		})
 	}
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -145,46 +147,56 @@ func downloadStats(wr http.ResponseWriter, req *http.Request) {
 }
 
 func downloadRatings(wr http.ResponseWriter, req *http.Request) {
+	var err error
+	id := chi.URLParam(req, "id")
+	data := [][]string{}
 
-	stats, err := storage.CalculateGroupRating(Config.TelegramBot.ChatId)
-	if err != nil {
-		Log.Errorf("Cannot get groups ratings. Reason %s", err)
-		wr.WriteHeader(http.StatusInternalServerError)
+	switch id {
+	case "groupRatings":
+		data = append(data, []string{"platform", "group", "rating"})
+		for platform := range storage.GroupRatings {
+			for group, rating := range storage.GroupRatings[platform] {
+				data = append(data, []string{platform, group, fmt.Sprintf("%f", rating)})
+			}
+		}
+	case "groupActivity":
+		data = append(data, []string{"platform", "group", "activity"})
+		for platform := range storage.GroupActivity {
+			for group, activity := range storage.GroupActivity[platform] {
+				data = append(data, []string{platform, group, fmt.Sprintf("%f", activity)})
+			}
+		}
+	case "platformRatings":
+		data = append(data, []string{"platform", "rating"})
+		for platform, rating := range storage.PlatformRatings {
+			data = append(data, []string{platform, fmt.Sprintf("%f", rating)})
+		}
+	case "platformActivity":
+		data = append(data, []string{"platform", "rating"})
+		for platform, activity := range storage.PlatformActivity {
+			data = append(data, []string{platform, fmt.Sprintf("%f", activity)})
+		}
+	default:
+		http.Error(wr, "Wrong id. Available groupRatings, groupActivity, platformRatings, platformActivity", http.StatusBadRequest)
 		return
 	}
 
-	type csvStats struct {
-		Platform string
-		Public   string
-		Rating   float64
-	}
+	buf := bytes.NewBuffer([]byte{})
 
-	temp := []csvStats{}
-	for platform, el := range stats {
-		for public, rating := range el {
-			temp = append(temp, csvStats{
-				Public:   public,
-				Platform: platform,
-				Rating:   rating,
-			})
-		}
-	}
-
-	csvContent, err := gocsv.MarshalString(&temp)
+	err = csv.NewWriter(buf).WriteAll(data)
 	if err != nil {
 		Log.Errorf("Cannot marshal to csv. Reason %s", err)
 		wr.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	r := strings.NewReader(csvContent)
-
-	wr.Header().Set("Content-Disposition", "attachment; filename=ratings.csv")
+	wr.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", id))
 	wr.Header().Set("Content-Type", "text/csv")
 	wr.Header().Set("Cache-Control", "no-cache")
-	wr.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size()))
+	wr.Header().Set("Content-Description", "File Transfer")
+	wr.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
 
-	_, err = io.Copy(wr, r)
+	_, err = io.Copy(wr, buf)
 	if err != nil {
 		Log.Errorf("Cannot copy stats.csv. Reason %s", err)
 		wr.WriteHeader(http.StatusInternalServerError)
@@ -209,10 +221,7 @@ func topDaylyMemHandler(wr http.ResponseWriter, req *http.Request) {
 
 	topMem := memes[0]
 	for _, mem := range memes {
-		if mem.Platform == "reddit" {
-			Log.Infof("found meme from reddit with kek score %f. Top is %f", mem.calculateKekScore(), topMem.calculateKekScore())
-		}
-		if mem.calculateKekScore() > topMem.calculateKekScore() {
+		if mem.СalculateKekScore() > topMem.СalculateKekScore() {
 			topMem = mem
 		}
 	}
@@ -230,7 +239,7 @@ func topDaylyMemHandler(wr http.ResponseWriter, req *http.Request) {
 	msgid, err := Config.TelegramBot.SendPhoto(topMem.Pictures, topMem.Description,
 		fmt.Sprintf("Новый мем от %s с индексом кекабельности %.2f",
 			public,
-			topMem.calculateKekScore(),
+			topMem.СalculateKekScore(),
 		))
 	if err != nil {
 		Log.Errorf("Cannot send photo to telegram. Reason %s", err)
@@ -250,9 +259,9 @@ func topDaylyMemHandler(wr http.ResponseWriter, req *http.Request) {
 		KekIndex:      topMem.calculateKekIndex(),
 		TimePassed:    time.Now().Sub(topMem.Time).String(),
 		TimeCoeff:     topMem.calculateTimeCoeff(),
-		GroupCoeff:    topMem.calculateGroupCoeff(),
+		GroupCoeff:    topMem.calculateGroupRating(),
 		GroupActivity: topMem.calculateGroupActivity(),
-		KekScore:      topMem.calculateKekScore(),
+		KekScore:      topMem.СalculateKekScore(),
 	}, "", "  ")
 
 	err = Config.TelegramBot.SendDebugText(fmt.Sprintf("Мем:\n%s", string(memeStr)))
@@ -268,7 +277,7 @@ func main() {
 	router.Post("/update/memes", updateMemes)
 	router.Get("/download/dump", downloadDump)
 	router.Get("/download/stats", downloadStats)
-	router.Get("/download/ratings", downloadRatings)
+	router.Get("/download/ratings/{id}", downloadRatings)
 
 	go func() {
 		Log.Infof("pprof result %v", http.ListenAndServe(":6060", nil))

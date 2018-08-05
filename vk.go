@@ -94,12 +94,11 @@ func (vk *VK) Init() error {
 					Log.Errorf("Cannot dump memes. Reason %s", err)
 					continue
 				}
-				rating, err := storage.CalculateGroupRating(Config.TelegramBot.ChatId)
+				err = storage.calculateCoeffs(Config.TelegramBot.ChatId)
 				if err != nil {
 					Log.Errorf("Cannot calculate groups rating. Reason %s", err)
 					continue
 				}
-				storage.GroupRatings = rating
 			}
 		}
 	}()

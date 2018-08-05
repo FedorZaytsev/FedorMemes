@@ -41,11 +41,7 @@ func (m *Meme) calculateKekIndex() float64 {
 	if m.Views == 0 {
 		return 0
 	}
-	if m.Likes == 0 {
-		return 0
-	}
-	var repostsToLikes = math.Min(float64(m.Reposts)/float64(m.Likes), 1)
-	return repostsToLikes + (1-repostsToLikes)*float64(m.Likes)/float64(m.Views)
+	return float64(m.Likes) / float64(m.Views) * float64(m.Reposts) / float64(m.Views) * 1000000
 }
 
 func (m *Meme) calculateTimeCoeff() float64 {
@@ -54,7 +50,7 @@ func (m *Meme) calculateTimeCoeff() float64 {
 	return 1 / math.Exp(x/Config.Metric.Coeff)
 }
 
-func (m *Meme) calculateGroupCoeff() float64 {
+func (m *Meme) calculateGroupRating() float64 {
 	if _, ok := storage.GroupRatings[m.Platform]; !ok {
 		if def, ok := Config.Metric.DefaultGroupRating[m.Platform]; ok {
 			return def
@@ -83,12 +79,36 @@ func (m *Meme) calculateGroupActivity() float64 {
 	return storage.GroupActivity[m.Platform][m.Public]
 }
 
-func (m *Meme) calculateKekScore() float64 {
+func (m *Meme) calculatePlatformRating() float64 {
+	rating, ok := storage.PlatformRatings[m.Platform]
+	if !ok {
+		if def, ok := Config.Metric.DefaultGroupRating[m.Platform]; ok {
+			return def
+		}
+		return 1.0
+	}
+	return rating
+}
+
+func (m *Meme) calculatePlatformActivity() float64 {
+	rating, ok := storage.PlatformActivity[m.Platform]
+	if !ok {
+		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
+		return 1.0
+	}
+	return rating
+}
+
+func (m *Meme) СalculateKekScore() float64 {
 	if m.Views == 0 {
 		return 0
 	}
-	var summedWeight = kekIndexWeight + timeCoeffWeight + groupCoeffWeight + groupActivityWeight
+	//var summedWeight = kekIndexWeight + timeCoeffWeight + groupCoeffWeight + groupActivityWeight
 
-	score := (kekIndexWeight*m.calculateKekIndex() + timeCoeffWeight*m.calculateTimeCoeff() + groupCoeffWeight*m.calculateGroupCoeff() /*+ groupActivityWeight*m.calculateGroupActivity()*/) / summedWeight //group coeff is unclear for me, need reconsideration of this coeff
-	return score * 10
+	score := m.calculateKekIndex() * m.calculateTimeCoeff()
+	score = score / m.calculateGroupActivity() * m.calculateGroupRating()
+	score = score / m.calculatePlatformActivity() * m.calculatePlatformRating()
+
+	//score := (kekIndexWeight*m.calculateKekIndex() + timeCoeffWeight*m.calculateTimeCoeff() + groupCoeffWeight*m.calculateGroupRating() /*+ groupActivityWeight*m.calculateGroupActivity()*/) / summedWeight //group coeff is unclear for me, need reconsideration of this coeff
+	return score
 }

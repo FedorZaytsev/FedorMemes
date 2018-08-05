@@ -127,7 +127,7 @@ func (s *Storage) getStatistics(chatId int64) ([]MemeStat, error) {
 			Dislikes:   dislikes,
 			KekIndex:   meme.calculateKekIndex(),
 			TimeCoeff:  meme.calculateTimeCoeff(),
-			GroupCoeff: meme.calculateGroupCoeff(),
+			GroupCoeff: meme.calculateGroupRating(),
 		})
 	}
 
