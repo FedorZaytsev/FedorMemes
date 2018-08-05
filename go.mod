@@ -2,7 +2,7 @@ module fedormemes
 
 require (
 	github.com/corona10/goimagehash v0.2.0
-	github.com/go-chi/chi v1.0.0
+	github.com/go-chi/chi v0.0.0-20180202194135-e223a795a06a
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20180328131029-0e0af0c480ea
 	github.com/gocarina/gocsv v0.0.0-20180321203523-a5c9099e2484
 	github.com/kirillDanshin/dlog v0.0.0-20170728000807-97d876b12bf9
