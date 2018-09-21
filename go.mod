@@ -13,9 +13,11 @@ require (
 	github.com/mxk/go-sqlite v0.0.0-20140611214908-167da9432e1f
 	github.com/naoina/go-stringutil v0.1.0
 	github.com/naoina/toml v0.1.1
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/ogier/pflag v0.0.1
 	github.com/pquerna/ffjson v0.0.0-20171002144729-d49c2bc1aa13
 	github.com/rossmcdonald/telegram_hook v0.0.0-20180425163729-a4d41aed67d6
+	github.com/shelomentsevd/mtproto v0.0.0-20180605151452-290461c61a83
 	github.com/sirupsen/logrus v1.0.5
 	github.com/technoweenie/multipartstreamer v1.0.1
 	github.com/toby3d/telegram v0.0.0-20180419151547-2f199bb9a485
