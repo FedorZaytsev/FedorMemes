@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gocarina/gocsv"
-	"github.com/ogier/pflag"
 )
 
 var (
@@ -24,10 +24,10 @@ var (
 func init() {
 	var versReq bool
 	var configPath string
-	pflag.StringVarP(&configPath, "config", "c", "config.toml", "Used for set path to config file.")
-	pflag.BoolVarP(&versReq, "version", "v", false, "Use for build time and version print")
+	flag.StringVar(&configPath, "c", "config.toml", "Used for set path to config file.")
+	flag.BoolVar(&versReq, "v", false, "Use for build time and version print")
 	var err error
-	pflag.Parse()
+	flag.Parse()
 	if versReq {
 		fmt.Println("Version: ", Version)
 		fmt.Println("Build time:", BuildTime)

@@ -300,7 +300,7 @@ func (s *Storage) AddMeme(meme Meme) error {
 		return nil
 	}
 
-	Log.Infof("New meme %v", meme)
+	//Log.Infof("New meme %v", meme)
 
 	pictures, err := json.Marshal(meme.Pictures)
 	if err != nil {

@@ -171,6 +171,5 @@ func (r *Reddit) updateMemes(from time.Time) error {
 func (r *Reddit) Init() error {
 	var err error
 	r.accessToken, r.tokenType, err = r.updateToken()
-	Log.Infof("Reddit token %s", r.accessToken)
 	return err
 }
