@@ -10,7 +10,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -74,11 +76,18 @@ func init() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	err = Config.Telegram.Init()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func updateMemes(wr http.ResponseWriter, req *http.Request) {
 	Config.VK.update()
 	Config.Reddit.update()
+	Config.Telegram.update()
 	err := storage.Dump()
 	if err != nil {
 		Log.Errorf("Cannot dump memes. Reason %s", err)
@@ -272,6 +281,8 @@ func topDaylyMemHandler(wr http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	var err error
+
 	router := chi.NewRouter()
 	router.Post("/post", topDaylyMemHandler)
 	router.Post("/update/memes", updateMemes)
@@ -279,13 +290,9 @@ func main() {
 	router.Get("/download/stats", downloadStats)
 	router.Get("/download/ratings/{id}", downloadRatings)
 
-	go func() {
-		Log.Infof("pprof result %v", http.ListenAndServe(":6060", nil))
-	}()
-
-	err := http.ListenAndServe(Config.ServeAddress, router)
+	err = http.ListenAndServe(Config.ServeAddress, router)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("ListenAndServe", err)
 		os.Exit(1)
 	}
 
@@ -293,4 +300,11 @@ func main() {
 	if err != nil {
 		Log.Errorf("Cannot close db. Reason %s", err)
 	}
+	sgnl := make(chan os.Signal)
+	signal.Notify(sgnl,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	_ = <-sgnl
 }

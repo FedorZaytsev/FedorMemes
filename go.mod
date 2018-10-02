@@ -1,6 +1,8 @@
 module fedormemes
 
 require (
+	github.com/cjongseok/mtproto v0.4.4
+	github.com/cjongseok/slog v0.1.2
 	github.com/corona10/goimagehash v0.2.0
 	github.com/go-chi/chi v0.0.0-20180202194135-e223a795a06a
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20180328131029-0e0af0c480ea
@@ -25,7 +27,8 @@ require (
 	github.com/valyala/fasthttp v0.0.0-20171207120941-e5f51c11919d
 	gitlab.com/toby3d/telegram v0.0.0-20180620134848-0458604abcda
 	golang.org/x/crypto v0.0.0-20180515001509-1a580b3eff78
-	golang.org/x/net v0.0.0-20180521201818-8e0cdda24ed4
-	golang.org/x/sys v0.0.0-20180514143608-7c87d13f8e83
+	golang.org/x/net v0.0.0-20180826012351-8a410e7b638d
+	golang.org/x/sys v0.0.0-20180830151530-49385e6e1522
 	golang.org/x/text v0.3.0
+	google.golang.org/grpc v1.15.0 // indirect
 )

@@ -22,9 +22,11 @@ type TomlConfig struct {
 
 	VK          VK
 	Reddit      Reddit
+	Telegram    Telegram
 	TelegramBot TelegramBot
 	DB          struct {
-		Name string
+		Name          string
+		UpdateTimeout int
 	}
 
 	Log struct {
