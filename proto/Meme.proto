@@ -12,7 +12,7 @@ message Meme {
   string public = 3;
   string platform = 4;
   repeated string pictures = 5;
-  string Description = 6;
+  string description = 6;
   int32 likes = 7;
   int32 reposts = 8;
   int32 views = 9;
@@ -28,6 +28,50 @@ message GetMemesResponse {
   repeated Meme response = 1;
 }
 
+message AddMemeRequest {
+  Meme meme = 1;
+}
+
+message MakeActionRequest {
+ string platform = 1;
+ int64 chat_id = 2;
+ int32 message_id = 3;
+ int32 user_id = 4;
+ int32 btn_id = 5;
+}
+
+message IsMemeExistsRequest {
+  string id = 1;
+  string public = 2;
+  string platfrom = 3;
+}
+
+message IsMemeExistsResponse {
+  bool exists = 1;
+}
+
+message GetMemeByIdRequest {
+  int32 id = 1;
+}
+
+message GetMemeByIdResponse {
+ Meme meme = 1;
+}
+
+message MarkMemeShownRequest {
+  int64 chat_id = 1;
+  int32 msg_id = 2;
+  int32 meme_id = 3;
+}
+
+message GetMemesStorageRequest {
+  int64 from = 1;
+}
+
+message GetMemesStorageUnshownRequest {
+  int64 from = 1;
+  int64 chat_id = 2;
+}
 
 service ConsumerAPI {
   rpc GetMemes (google.protobuf.Empty) returns (GetMemesResponse) {
@@ -38,6 +82,44 @@ service ConsumerAPI {
   rpc GetMemesFrom (GetMemesRequest) returns (GetMemesResponse) {
     option (google.api.http) = {
       get: "/memes/from"
+    };
+  }
+}
+
+service Storage {
+  rpc AddMeme (AddMemeRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/meme"
+    };
+  }
+  rpc MakeAction (MakeActionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/makeAction"
+    };
+  }
+  rpc IsMemeExists (IsMemeExistsRequest) returns (IsMemeExistsResponse) {
+    option (google.api.http) = {
+      get: "/meme/exists"
+    };
+  }
+  rpc GetMemeById (GetMemeByIdRequest) returns (GetMemeByIdResponse) {
+    option (google.api.http) = {
+      get: "/meme/{id}"
+    };
+  }
+  rpc MarkMemeShown (MarkMemeShownRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      patch: "/meme/{meme_id}"
+    };
+  }
+  rpc GetMemes (GetMemesStorageRequest) returns (GetMemesResponse) {
+    option (google.api.http) = {
+      get: "/memes"
+    };
+  }
+  rpc GetMemesUnshown (GetMemesStorageUnshownRequest) returns (GetMemesResponse) {
+    option (google.api.http) = {
+      get: "/memes"
     };
   }
 }
