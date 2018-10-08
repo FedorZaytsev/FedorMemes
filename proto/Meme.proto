@@ -1,0 +1,43 @@
+//protoc --go_out=plugins=grpc:. Meme.proto && protoc --grpc-gateway_out=logtostderr=true:. Meme.proto
+
+syntax = "proto3";
+package protoapi;
+
+import "google/api/annotations.proto";
+import "google/protobuf/Empty.proto";
+
+message Meme {
+  int32 id = 1;
+  string meme_id = 2;
+  string public = 3;
+  string platform = 4;
+  repeated string pictures = 5;
+  string Description = 6;
+  int32 likes = 7;
+  int32 reposts = 8;
+  int32 views = 9;
+  int32 comments = 10;
+  int64 time = 11;
+}
+
+message GetMemesRequest {
+  int64 from = 1;
+}
+
+message GetMemesResponse {
+  repeated Meme response = 1;
+}
+
+
+service ConsumerAPI {
+  rpc GetMemes (google.protobuf.Empty) returns (GetMemesResponse) {
+    option (google.api.http) = {
+      get: "/memes"
+    };
+  }
+  rpc GetMemesFrom (GetMemesRequest) returns (GetMemesResponse) {
+    option (google.api.http) = {
+      get: "/memes/from"
+    };
+  }
+}

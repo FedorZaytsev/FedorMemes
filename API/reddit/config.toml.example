@@ -1,0 +1,21 @@
+#TOML config file.
+title = "fm_reddit"
+grpc_address = ":3370"
+http_address = ":3371"
+
+[Reddit]
+UserAgent = "Fedor-memes-bot"
+Publics = ["memes"]
+AppId = "APPID"
+Password = "PASSWORD"
+Secret = "SECRET"
+Username = "USERNAME"
+
+[telegram_bot]
+chat_id_debug = 0																#test
+token = "0000000"									#test
+
+
+[log]
+type = "stdout"
+severity = "LOG_DEBUG"
