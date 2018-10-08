@@ -1,0 +1,29 @@
+#TOML config file.
+title = "fm_vk"
+grpc_address = ":3374"
+http_address = ":3375"
+
+[VK]
+server_address = "https://api.vk.com/method/"
+token = "0"
+vk_api_version = "5.75"
+request_timeout = 200																	#in ms
+looking_duration = 72 																	#in hours
+update_timeout = 10																		#in minutes
+link_format = "https://vk.com/{{.Group}}?w=wall-{{.GroupId}}_{{.PostId}}"
+SpamFilter = "\\[(club|id).*\\|.*\\]"
+
+
+[VK.publics]
+        [VK.publics.ru9gag]
+        name = "9GAG"
+        groupId = 32041317
+
+[telegram_bot]
+chat_id_debug = 0																#test
+token = ""									#test
+
+
+[log]
+type = "stdout"
+severity = "LOG_DEBUG"

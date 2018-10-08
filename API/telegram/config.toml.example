@@ -1,0 +1,22 @@
+#TOML config file.
+title = "fm_telegram"
+grpc_address = ":3372"
+http_address = ":3373"
+
+[telegram]
+AppId = 0
+AppHash = ""
+PhoneNumber = "+000000"
+IP = "127.0.0.1"
+Port = 80
+LookingDuration = 72
+LoadStep = 100
+
+[telegram_bot]
+chat_id_debug = 0																#test
+token = ""									#test
+
+
+[log]
+type = "stdout"
+severity = "LOG_DEBUG"
