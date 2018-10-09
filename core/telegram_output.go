@@ -24,7 +24,7 @@ type TelegramBot struct {
 
 type InlineButtonData struct {
 	Text    string `json:"text"`
-	Counter int    `json:"count"`
+	Counter int32    `json:"count"`
 	IsMain  bool   `json:"is_main"`
 }
 
@@ -42,7 +42,7 @@ func (b *InlineButtonData) Unpack(data string) error {
 	if err != nil {
 		return fmt.Errorf("Cannot convert counter to int. Counter %s. Reason %s", d[1], err)
 	}
-	b.Counter = counter
+	b.Counter = int32(counter)
 
 	return nil
 }
@@ -200,7 +200,7 @@ func (b *TelegramBot) EventHandler() {
 			}
 
 			for i := 0; i < len(metadata); i++ {
-				metadata[i].Counter = counters[i]
+				metadata[i].Counter = counters[int32(i)]
 			}
 
 			keyboard := telegram.EditMessageReplyMarkupParameters{

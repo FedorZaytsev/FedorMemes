@@ -73,6 +73,31 @@ message GetMemesStorageUnshownRequest {
   int64 chat_id = 2;
 }
 
+message ShownMemeInfo {
+  int32 meme_id = 1;
+  int32 msg_id = 2;
+  int32 likes = 3;
+  int32 dislikes = 4;
+}
+
+message GetShownMemesInfoRequest {
+  int64 chat_id = 1;
+}
+
+message GetShownMemesInfoResponse {
+  repeated ShownMemeInfo Response = 1;
+}
+
+message GetMemeInfoRequest {
+  string platform = 1;
+  int64 chat_id = 2;
+  int32 message_id = 3;
+}
+
+message GetMemeInfoResponse {
+  map<int32, int32> reactions = 1;
+}
+
 service ConsumerAPI {
   rpc GetMemes (google.protobuf.Empty) returns (GetMemesResponse) {
     option (google.api.http) = {
@@ -119,7 +144,17 @@ service Storage {
   }
   rpc GetMemesUnshown (GetMemesStorageUnshownRequest) returns (GetMemesResponse) {
     option (google.api.http) = {
-      get: "/memes"
+      get: "/memes/unshown"
+    };
+  }
+  rpc GetShownMemesInfo (GetShownMemesInfoRequest) returns (GetShownMemesInfoResponse) {
+    option (google.api.http) = {
+      get: "/memes/shown/info"
+    };
+  }
+  rpc GetMemeInfo (GetMemeInfoRequest) returns (GetMemeInfoResponse) {
+    option (google.api.http) = {
+      get: "/meme/id/info"
     };
   }
 }

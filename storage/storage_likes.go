@@ -40,16 +40,16 @@ func (s *Storage) MakeAction(platform string, chatId int64, messageId, userId, b
 	return nil
 }
 
-func (s *Storage) calculateCounter(platform string, chatId int64, messageId int) (map[int]int, error) {
-	btnCounters := make(map[int]int)
+func (s *Storage) CalculateCounter(platform string, chatId int64, messageId int) (map[int32]int32, error) {
+	btnCounters := make(map[int32]int32)
 	rows, err := s.DB.Query("SELECT btn_id, count(*) FROM chat_metadata WHERE msg_id = ? and chat_id = ? GROUP BY btn_id", messageId, chatId)
 	if err != nil {
 		return btnCounters, fmt.Errorf("Cannot get counter for message %d. Reason %s", messageId, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var btnId int
-		var count int
+		var btnId int32
+		var count int32
 		err = rows.Scan(&btnId, &count)
 		if err != nil {
 			return btnCounters, fmt.Errorf("Cannot scan from row. Reason %s", err)

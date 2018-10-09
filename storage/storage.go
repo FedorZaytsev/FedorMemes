@@ -212,6 +212,35 @@ func (s *Storage) GetMemes(from time.Time) ([]*pb.Meme, error) {
 	return s.parseGetMemesAnswer(rows)
 }
 
+func (s *Storage) GetShownMemesInfo(chatId int64) ([]*pb.ShownMemeInfo, error) {
+	shownmemes := []*pb.ShownMemeInfo{}
+
+	rows, err := s.DB.Query(`select meme_id, msg_id from shown_memes where msg_id != 0 and chat_id = ?`, chatId)
+	if err != nil {
+		return shownmemes, fmt.Errorf("Cannot get shown memes. Reason %s", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var info pb.ShownMemeInfo
+		err = rows.Scan(&info.MemeId, &info.MsgId)
+		if err != nil {
+			return shownmemes, fmt.Errorf("Cannot scan values from db. Reason %s", err)
+		}
+
+		err = s.DB.QueryRow(`select t1.likes, t2.dislikes from
+			(select count(*) as likes from chat_metadata where chat_id=? and msg_id = ? and btn_id=0) as t1
+			join
+			(select count(*) as dislikes from chat_metadata where chat_id=? and msg_id = ? and btn_id=1) as t2;`, chatId, info.MsgId, chatId, info.MsgId).Scan(&info.Likes, &info.Dislikes)
+		if err != nil {
+			return shownmemes, fmt.Errorf("Cannot get counter for message %d. Reason %s", info.MsgId, err)
+		}
+
+		shownmemes = append(shownmemes, &info)
+	}
+	return shownmemes, nil
+}
+
 func (s *Storage) GetUnshownMemes(chatId int64, from time.Time) ([]*pb.Meme, error) {
 	rows, err := s.DB.Query(`select * from memes as m where time > ? and EXISTS(
 	select 1 from shown_memes as sm where m.id == sm.meme_id and sm.chat_id == ?

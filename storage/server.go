@@ -75,3 +75,23 @@ func (s Server) GetMemesUnshown(ctx context.Context, in *pb.GetMemesStorageUnsho
 		Response: memes,
 	}, nil
 }
+
+func (s Server) GetShownMemesInfo(ctx context.Context, in *pb.GetShownMemesInfoRequest) (*pb.GetShownMemesInfoResponse, error) {
+	info, err := storage.GetShownMemesInfo(in.ChatId)
+	if err != nil {
+		return &pb.GetShownMemesInfoResponse{}, fmt.Errorf("Cannot get shown memes info. Reason %s", err)
+	}
+	return &pb.GetShownMemesInfoResponse{
+		Response: info,
+	}, nil
+}
+
+func (s Server) GetMemeInfo(ctx context.Context, in *pb.GetMemeInfoRequest) (*pb.GetMemeInfoResponse, error) {
+	info, err := storage.CalculateCounter(in.Platform, in.ChatId, int(in.MessageId))
+	if err != nil {
+		return &pb.GetMemeInfoResponse{}, fmt.Errorf("Cannot get meme info. Reason %s", err)
+	}
+	return &pb.GetMemeInfoResponse{
+		Reactions: info,
+	}, nil
+}

@@ -4,24 +4,17 @@ import (
 	"encoding/json"
 	"math"
 	"time"
+
+	pb "github.com/FedorZaytsev/FedorMemes"
 )
 
 type Meme struct {
-	Id          int
-	MemeId      string
-	Public      string
-	Platform    string
-	Pictures    Pictures
-	Description string
-	Likes       int
-	Reposts     int
-	Views       int
-	Comments    int
-	Time        time.Time
+	*pb.Meme
 }
 
+
 type MemeDebug struct {
-	Meme
+	*pb.Meme
 	KekIndex      float64
 	TimePassed    string
 	TimeCoeff     float64
@@ -45,7 +38,7 @@ func (m *Meme) calculateKekIndex() float64 {
 }
 
 func (m *Meme) calculateTimeCoeff() float64 {
-	x := float64(time.Now().Sub(m.Time)) / float64(time.Hour)
+	x := float64(time.Now().Sub(time.Unix(m.Time, 0))) / float64(time.Hour)
 
 	return 1 / math.Exp(x/Config.Metric.Coeff)
 }
@@ -69,11 +62,9 @@ func (m *Meme) calculateGroupRating() float64 {
 
 func (m *Meme) calculateGroupActivity() float64 {
 	if _, ok := storage.GroupActivity[m.Platform]; !ok {
-		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
 		return 1.0
 	}
 	if _, ok := storage.GroupActivity[m.Platform][m.Public]; !ok {
-		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
 		return 1.0
 	}
 	return storage.GroupActivity[m.Platform][m.Public]
@@ -93,7 +84,6 @@ func (m *Meme) calculatePlatformRating() float64 {
 func (m *Meme) calculatePlatformActivity() float64 {
 	rating, ok := storage.PlatformActivity[m.Platform]
 	if !ok {
-		Log.Infof("calculateGroupActivity Cannot find %s in %v", m.Platform, storage.GroupActivity)
 		return 1.0
 	}
 	return rating
